@@ -11,7 +11,8 @@
             "mode": "auto",
             "program": "${workspaceFolder}",
             "env": {
-                "APP_NAME": "demo go-app"
+                "APP_NAME": "demo go-app",
+                "DB_CONNECTION": "root:my-secret-pw@tcp(127.0.0.1:3309)/social-todo-list?charset=utf8mb4&parseTime=True&loc=Local"
             }
         }
     ]
