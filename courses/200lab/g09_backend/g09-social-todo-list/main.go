@@ -41,6 +41,26 @@ type TodoItemUpdate struct {
 
 func (TodoItemUpdate) TableName() string { return TodoItem{}.TableName() }
 
+type Paging struct {
+	Page  int   `json:"page" form:"page"`
+	Limit int   `json:"limit" form:"limit"`
+	Total int64 `json:"total" form:"-"`
+}
+
+func (p *Paging) Process() {
+	if p.Page < 1 {
+		p.Page = 1
+	}
+
+	if p.Limit <= 1 {
+		p.Limit = 1
+	}
+
+	if p.Limit >= 100 {
+		p.Limit = 100
+	}
+}
+
 func main() {
 
 	// refer https://github.com/go-sql-driver/mysql#dsn-data-source-name for details
@@ -51,8 +71,8 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	db = db.Debug()
 	log.Println("DB Connection: ", db)
-
 	now := time.Now().UTC()
 	item := TodoItem{
 		Id:          1,
@@ -88,7 +108,7 @@ func main() {
 		items := v1.Group("items")
 		{
 			items.POST("", CreateItem(db))
-			items.GET("")
+			items.GET("", ListItem(db))
 			items.GET("/:id", GetItem(db))
 			items.PATCH("/:id", UpdateItem(db))
 			items.DELETE("/:id", DeleteItem((db)))
@@ -234,6 +254,51 @@ func DeleteItem(db *gorm.DB) func(ctx *gin.Context) {
 
 		c.JSON(http.StatusOK, gin.H{
 			"data": true,
+		})
+	}
+}
+
+func ListItem(db *gorm.DB) func(ctx *gin.Context) {
+	return func(c *gin.Context) {
+
+		var paging Paging
+
+		if err := c.ShouldBind(&paging); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		paging.Process()
+
+		var result []TodoItem
+
+		db = db.Table(TodoItem{}.TableName()).Where("status <> ?", "Deleted")
+
+		// SELECT COUNT(id) FROM todo_items --> paging.Total
+		if err := db.Table(TodoItem{}.TableName()).Select("id").Count(&paging.Total).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+		}
+
+		// SELECT * FROM todo_items ORDER BY id ASC LIMIT paging.Limit OFFSET (paging.Page - 1) * paging.Limit
+		if err := db.Table(TodoItem{}.TableName()).
+			Select("*").
+			Offset((paging.Page - 1) * paging.Limit).
+			Limit(paging.Limit).
+			Order("id asc").
+			Find(&result).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"data":   result,
+			"paging": paging,
 		})
 	}
 }
