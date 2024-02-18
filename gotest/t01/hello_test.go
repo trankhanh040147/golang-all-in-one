@@ -6,19 +6,27 @@ import (
 )
 
 func TestHello(t *testing.T) {
+
+	t.Run("saying hello to the World", func(t *testing.T) {
+		got := Hello("", "")
+
+		want := fmt.Sprintf("Hello, World")
+
+		assertCorrectMessage(t, got, want)
+	})
+
 	t.Run("saying hello to people", func(t *testing.T) {
 		name := "Chris"
-		got := Hello(name)
+		got := Hello(name, "")
 
 		want := fmt.Sprintf("Hello, %s", name)
 
 		assertCorrectMessage(t, got, want)
 	})
-	t.Run("saying hello to the World", func(t *testing.T) {
-		got := Hello("")
 
-		want := fmt.Sprintf("Hello, World")
-
+	t.Run("in Spanish", func(t *testing.T) {
+		got := Hello("Tony", "Spanish")
+		want := fmt.Sprintf("Hola, Tony")
 		assertCorrectMessage(t, got, want)
 	})
 }
